@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+
+    <style>
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .SP_options {
+            padding: 5px;
+        }
+        .align_start {
+            align-items: start;
+        }
+        .corrMatrixAxis path {
+            stroke: transparent;
+        }
+        .frame {
+            fill: none;
+            stroke: #aaa;
+        }
+        .SPMaxis line {
+            stroke: transparent;
+        }
+
+        .SPMaxis path {
+            display: none;
+        }
+
+        .SPMcell text {
+            font-weight: bold;
+            text-transform: capitalize;
+        }
+        .background path {
+            fill: none;
+            stroke: #ddd;
+            shape-rendering: crispEdges;
+        }
+
+        .foreground path {
+            fill: none;
+            stroke: cadetblue;
+        }
+
+        .brush .extent {
+            fill-opacity: .3;
+            stroke: #fff;
+            shape-rendering: crispEdges;
+        }
+
+        .axis line,
+        .axis path {
+            fill: none;
+            stroke: #000;
+            shape-rendering: crispEdges;
+        }
+
+        .axis text {
+            text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+        }
+
+    </style>
+</head>
+<body>
+
+<svg id="svg1" width="787" height="440"></svg>
+<svg id="svg2" width="787" height="440"></svg>
+<svg id="svg3" width="787" height="440"></svg>
+<svg id="svg4" width="787" height="440"></svg>
+
+<script src="https://d3js.org/d3.v4.min.js"></script>
+
+<script>
+
+    var parallel_coordinates = d3.select("#svg1");
+    var bar_graph = d3.select("#svg2");
+    var scatter_plot_matrix = d3.select("#svg3");
+    var scatter_plot = d3.select("#svg4");
+
+
+    var x = d3.scalePoint().range([0, 680]),
+        y = {},
+        dragging = {};
+
+    var line = d3.line(),
+        axis = d3.axisLeft(),
+        background,
+        foreground;
+
+
+    function position(d) {
+        var v = dragging[d];
+        return v == null ? x(d) : v;
+    }
+
+    function transition(g) {
+        return g.transition().duration(500);
+    }
+
+    // Returns the path for a given data point.
+    function path(d) {
+        return line(dimensions.map(function (p) {
+            return [position(p), y[p](d[p])];
+        }));
+    }
+
+    d3.csv("aaa.csv", function(error, data) {
+
+        var margin = {top: 30, right: 10, bottom: 10, left: 10},
+            width = 700 - margin.left - margin.right,
+            height = 400 - margin.top - margin.bottom;
+
+
+        // Extract the list of dimensions and create a scale for each.
+        x.domain(dimensions = ["Installs","Reviews","Size","AndroidVer","Rating","Price","CurrentVer"].filter(function (d) {
+            return (y[d] = d3.scaleLinear()
+                .domain(d3.extent(data, function (p) {
+                    return +p[d];
+                }))
+                .range([height, 0]));
+        }));
+
+        // Add grey background lines for context.
+        background = parallel_coordinates.append("g")
+            .attr("class", "background")
+            .selectAll("path")
+            .data(data)
+            .enter().append("path")
+            .attr("d", path)
+            .attr("transform", "translate(90,60)");
+
+        // Add blue foreground lines for focus.
+        foreground = parallel_coordinates.append("g")
+            .attr("class", "foreground")
+            .selectAll("path")
+            .data(data)
+            .enter().append("path")
+            .attr("d", path)
+            .attr("transform", "translate(90,60)");
+
+
+        // Add a group element for each dimension.
+        var g = parallel_coordinates.selectAll(".dimension")
+            .data(dimensions)
+            .enter().append("g")
+            .attr("class", "dimension")
+            .attr("transform", function (d) {
+                return "translate(" + x(d) + ", 60)";
+            });
+
+        // Add an axis and title.
+        g.append("g")
+            .attr("class", "axis")
+            .attr("transform", "translate(90,0)")
+            .each(function (d) {
+                d3.select(this).call(axis.scale(y[d]));
+            });
+
+        // Add and store a brush for each axis.
+        g.append("g")
+            .attr("class", "brush")
+            .selectAll("rect")
+            .attr("x", -8)
+            .attr("width", 16);
+
+
+        function position(d) {
+            var v = dragging[d];
+            return v == null ? x(d) : v;
+        }
+
+        function transition(g) {
+            return g.transition().duration(500);
+        }
+
+        // Returns the path for a given data point.
+        function path(d) {
+            return line(dimensions.map(function (p) {
+                return [position(p), y[p](d[p])];
+            }));
+        }
+
+        parallel_coordinates.append("text").attr("transform", "translate(75,50)").text("Installs");
+        parallel_coordinates.append("text").attr("transform", "translate(175,50)").text("Reviews");
+        parallel_coordinates.append("text").attr("transform", "translate(300,50)").text("Size");
+        parallel_coordinates.append("text").attr("transform", "translate(375,50)").text("Android Version");
+        parallel_coordinates.append("text").attr("transform", "translate(525,50)").text("Rating");
+        parallel_coordinates.append("text").attr("transform", "translate(625,50)").text("Price");
+        parallel_coordinates.append("text").attr("transform", "translate(675,50)").text("Current Version");
+
+    });
+
+    d3.csv("aaa.csv", function(data) {
+
+        var versions = [0,0,0,0,0,0,0,0];
+
+
+        data.forEach(function(d) {
+            versions[Math.floor(d.AndroidVer)-1] += 1;
+        });
+
+        logv = versions.map(function(d) {
+            return Math.log(d)
+        });
+
+        var vers = [
+            {v: 1, freq: logv[0]},
+            {v: 2, freq: logv[1]},
+            {v: 3, freq: logv[2]},
+            {v: 4, freq: logv[3]},
+            {v: 5, freq: logv[4]},
+            {v: 6, freq: logv[5]},
+            {v: 7, freq: logv[6]},
+            {v: 8, freq: logv[7]},
+        ];
+
+        var margin = 200,
+            width = 787 - margin,
+            height = 440 - margin;
+
+        var xScale = d3.scaleBand().range([0, width]).padding(0.4);//scaleBand() is used to construct a band scale. This is useful when our data has discrete bands.
+        yScale = d3.scaleLinear().range([height, 0]);//a linear scale for the y-axis since this axis will show our stock prices.
+
+        var g = bar_graph.append("g")
+            .attr("transform", "translate(" + 100 + "," + 100 + ")");
+
+        xScale.domain(vers.map(function(d) { return d.v; })); //provide domain values to the x and y scales, here it's X Scale which is Timestamp
+        yScale.domain([0, d3.max(vers, function(d) { return d.freq; })]); // domain value of Fixation Duration to y Scale
+
+        g.append("g") //Another group element to have our x-axis grouped under one group element
+            .attr("transform", "translate(0," + height + ")") // We then use the transform attribute to shift our x-axis towards the bottom of the SVG.
+            .call(d3.axisBottom(xScale)) //We then insert x-axis on this group element using .call(d3.axisBottom(x)).
+            .append("text")
+            .attr("y", height - 200)
+            .attr("x", width - 240)
+            .attr("text-anchor", "end")
+            .attr("stroke", "black")
+            .attr("font-size", "16px")
+            .text("Android Version");
+
+        g.append("g") //Another group element to have our y-axis grouped under one group element
+            .call(d3.axisLeft(yScale).tickFormat(function(d){ // Try with X Scaling too.
+                return  d;
+            })
+                .ticks(10)) //We have also specified the number of ticks we would like our y-axis to have using ticks(10).
+            .append("text")
+            .attr("transform", "rotate(-90) translate(-60, 40)")
+            .attr("y", 6)
+            .attr("dy", "-5.1em")
+            .attr("text-anchor", "end")
+            .attr("stroke", "black")
+            .attr("font-size", "16px")
+            .text("Amount (log)");
+
+        g.selectAll(".bar") //created dynamic bars with our data using the SVG rectangle element.
+            .data(vers)
+            .enter().append("rect")
+            .attr("class", "bar")
+            .attr("x", function(d) { return xScale(d.v); })  //x scale created earlier and pass the year value from our data.
+            .attr("y", function(d) { return yScale(d.freq); }) // pass the data value to our y scale and receive the corresponding y value from the y range.
+            .attr("width", xScale.bandwidth()) //width of our bars would be determined by the scaleBand() function.
+            .attr("height", function(d) { return height - yScale(d.freq); })
+            .attr("fill", "cadetblue")
+            .on("mouseover", function(d) {
+                d3.select(this).attr("fill", "red");
+                num = ((Math.floor(d3.select(this).attr("x"))-27)/70)+1;
+                scatter_plot_matrix.selectAll("circle").remove();
+                var xsm = d3.scaleLinear()
+                    .range([0, 500])
+                    .domain(d3.extent(data, function(d) { return parseInt(d.CurrentVer); })).nice();
+                var ysm = d3.scaleLinear()
+                    .range([380, 0])
+                    .domain(d3.extent(data, function(d) { return parseInt(d.Reviews); })).nice();
+                scatter_plot_matrix.selectAll("circle")
+                    .data(data)
+                    .enter()
+                    .append("circle")
+                    .attr("cx", function(d) {return xsm(d.CurrentVer)})
+                    .attr("cy", function(d) {return ysm(d.Reviews)})
+                    .attr("r", 3)
+                    .attr("transform", "translate(150,20)")
+                    .attr("fill", function(d) {
+                        if (Math.floor(d.AndroidVer) === num) {
+                            return "red";
+                        } else {
+                            return "transparent";
+                        }
+                    });
+
+                var xs = d3.scaleLinear()
+                    .range([0, 500])
+                    .domain(d3.extent(data, function(d) { return parseFloat(d.Rating); })).nice();
+                var ys = d3.scaleLinear()
+                    .range([380, 0])
+                    .domain(d3.extent(data, function(d) { return parseInt(d.Size); })).nice();
+                scatter_plot.selectAll("circle").remove();
+                scatter_plot.selectAll("circle")
+                    .data(data)
+                    .enter()
+                    .append("circle")
+                    .attr("cx", function(d) {return xs(d.Rating)})
+                    .attr("cy", function(d) {return ys(d.Size)})
+                    .attr("r", 3)
+                    .attr("transform", "translate(150,20)")
+                    .attr("fill", function(d) {
+                        if (Math.floor(d.AndroidVer) === num) {
+                            return "red";
+                        } else {
+                            return "transparent";
+                        }
+                    });
+
+                foreground = parallel_coordinates.append("g")
+                    .attr("class", "foreground")
+                    .selectAll("path")
+                    .data(data)
+                    .enter().append("path")
+                    .attr("d", path)
+                    .attr("transform", "translate(90,60)")
+                    .style("stroke", function(d) {
+                        if (Math.floor(d.AndroidVer) === num) {
+                            return "red";
+                        } else {
+                            return "transparent";
+                        }
+                    });
+
+            })
+            .on("mouseout", function(d) {
+                d3.select(this).attr("fill", "cadetblue");
+                scatter_plot_matrix.selectAll("circle").remove();
+                var xsm = d3.scaleLinear()
+                    .range([0, 500])
+                    .domain(d3.extent(data, function(d) { return parseInt(d.CurrentVer); })).nice();
+                var ysm = d3.scaleLinear()
+                    .range([380, 0])
+                    .domain(d3.extent(data, function(d) { return parseInt(d.Reviews); })).nice();
+                scatter_plot_matrix.selectAll("circle")
+                    .data(data)
+                    .enter()
+                    .append("circle")
+                    .attr("cx", function(d) {return xsm(d.CurrentVer)})
+                    .attr("cy", function(d) {return ysm(d.Reviews)})
+                    .attr("r", 3)
+                    .attr("transform", "translate(150,20)")
+                    .attr("fill", "cadetblue");
+
+                var xs = d3.scaleLinear()
+                    .range([0, 500])
+                    .domain(d3.extent(data, function(d) { return parseFloat(d.Rating); })).nice();
+                var ys = d3.scaleLinear()
+                    .range([380, 0])
+                    .domain(d3.extent(data, function(d) { return parseInt(d.Size); })).nice();
+
+                scatter_plot.selectAll("circle").remove();
+                scatter_plot.selectAll("circle")
+                    .data(data)
+                    .enter()
+                    .append("circle")
+                    .attr("cx", function(d) {return xs(d.Rating)})
+                    .attr("cy", function(d) {return ys(d.Size)})
+                    .attr("r", 3)
+                    .attr("transform", "translate(150,20)")
+                    .attr("fill", "cadetblue");
+                parallel_coordinates.selectAll("path").style("stroke", "cadetblue")
+            });
+    });
+
+    d3.csv("aaa.csv", function(data) {
+
+        var width = 500,
+            height = 380;
+
+        var x = d3.scaleLinear()
+            .range([0, width])
+            .domain(d3.extent(data, function(d) { return parseInt(d.CurrentVer); })).nice();
+        var y = d3.scaleLinear()
+            .range([height, 0])
+            .domain(d3.extent(data, function(d) { return parseInt(d.Reviews); })).nice();
+
+        var xAxis = d3.axisBottom(x);
+        var yAxis = d3.axisLeft(y);
+
+        scatter_plot_matrix.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(150,400)")
+            .call(xAxis);
+
+        scatter_plot_matrix.append("text")
+            .attr("transform", "translate(0,0)")
+            .attr("x", 400)
+            .attr("y", 430)
+            .attr("font-size", "12px")
+            .text("Current Version");
+
+        scatter_plot_matrix.append("g")
+            .attr("class", "y axis")
+            .attr("transform", "translate(150,20)")
+            .call(yAxis);
+
+        scatter_plot_matrix.append("text")
+            .attr("transform", "rotate(-90) translate(-600,-375)")
+            .attr("x", 400)
+            .attr("y", 430)
+            .attr("font-size", "12px")
+            .text("Reviews");
+
+        scatter_plot_matrix.selectAll("circle")
+            .data(data)
+            .enter()
+            .append("circle")
+            .attr("class", function(d) {return ""+Math.floor(d.AndroidVer)})
+            .attr("cx", function(d) {return x(d.CurrentVer)})
+            .attr("cy", function(d) {return y(d.Reviews)})
+            .attr("r", 3)
+            .attr("transform", "translate(150,20)")
+            .attr("fill", "cadetblue");
+    });
+
+    d3.csv("aaa.csv", function(data) {
+
+        var width = 500,
+            height = 380;
+
+        var x = d3.scaleLinear()
+            .range([0, width])
+            .domain(d3.extent(data, function(d) { return parseFloat(d.Rating); })).nice();
+        var y = d3.scaleLinear()
+            .range([height, 0])
+            .domain(d3.extent(data, function(d) { return parseInt(d.Size); })).nice();
+
+        var xAxis = d3.axisBottom(x);
+        var yAxis = d3.axisLeft(y);
+
+        scatter_plot.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(150,400)")
+            .call(xAxis);
+
+        scatter_plot.append("text")
+            .attr("transform", "translate(0,0)")
+            .attr("x", 400)
+            .attr("y", 430)
+            .attr("font-size", "12px")
+            .text("Rating");
+
+        scatter_plot.append("g")
+            .attr("class", "y axis")
+            .attr("transform", "translate(150,20)")
+            .call(yAxis);
+
+        scatter_plot.append("text")
+            .attr("transform", "rotate(-90) translate(-600,-375)")
+            .attr("x", 400)
+            .attr("y", 430)
+            .attr("font-size", "12px")
+            .text("Size");
+
+        scatter_plot.selectAll("circle")
+            .data(data)
+            .enter()
+            .append("circle")
+            .attr("cx", function(d) {return x(d.Rating)})
+            .attr("cy", function(d) {return y(d.Size)})
+            .attr("r", 3)
+            .attr("transform", "translate(150,20)")
+            .attr("fill", "cadetblue");
+    });
+
+</script>
+
+</body>
+</html>
